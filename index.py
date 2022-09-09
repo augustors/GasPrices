@@ -208,7 +208,40 @@ app.layout = dbc.Container(children=[
                 ])
             ], justify='center', style={"padding-bottom": "7px", "height": "50%"})
         ], sm=12, lg=3, style={"height": "100%"})
-    ], className='g-2 my-auto')
+    ], className='g-2 my-auto'),
+
+    #Row 3
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Button([html.I(className='fa fa-play')], id='play-button', style={"margin-right": "15px"}),
+                        dbc.Button([html.I(className='fa fa-stop')], id='stop-button')
+                    ], sm=12, md=1, style={'justify-content': 'center', 'margin-top': '10px'},),
+                    dbc.Col([
+                        dcc.RangeSlider(
+                            id='rangeslider',
+                            marks={int(x): f'{x}' for x in df_main['ANO'].unique()},
+                            step=3,
+                            min=2004,
+                            max=2021,
+                            className='dbc',
+                            value=[2004,2021],
+                            dots=True,
+                            pushable=3,
+                            tooltip={'always_visible': False, 'placement': 'bottom'}
+                        )
+                    ], sm=12, md=10, style={'margin-top': '15px'}),
+                    dcc.Interval(
+                        id='interval',
+                        interval=2000
+                    )
+                ], className='g-1', style={"height":"20%", "justify-content": "center"})
+            ], style=tab_card)
+        ])
+    ])
+    
 ], fluid=True, style = {"height":"100%"})
 
 # Run server
