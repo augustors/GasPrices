@@ -462,7 +462,18 @@ def card2(data, estado, toggle):
 
     return fig
 
+#Date Range
+@app.callback(
+    Output('dataset', 'data'),
+    [Input('rangeslider', 'value'),
+    Input('dataset_fixed', 'data')], prevent_initial_call=True
+)
+def range_slider(range,data):
+    dff = pd.DataFrame(data)
+    dff = dff[(dff['ANO'] >= f'{range[0]}-01-01') &  (dff['ANO'] <= f'{range[1]}-31-12')]
+    data = dff.to_dict()
 
+    return data
 
 # Run server
 if __name__ == '__main__':
