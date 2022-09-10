@@ -1,3 +1,5 @@
+from re import M
+from unittest.case import DIFF_OMITTED
 import dash
 from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
@@ -22,6 +24,19 @@ url_theme1 = dbc.themes.FLATLY
 url_theme2 = dbc.themes.VAPOR
 
 tab_card = {"height": "100%"}
+main_config = {
+    "hovermode": "x unified",
+    "legend": {
+        "yanchor": "top",
+        "y": 0.9,
+        "xanchor": "left",
+        "x": 0.1,
+        "title": {"text": None},
+        "font": {"color": "white"},
+        "bgcolor": "rgba(0,0,0,0.5)"},
+    "margin": {"l":0, "r":0, "t":10, "b":0}
+}
+
 
 #======== Reading and Cleaning File ==========#
 df_main = pd.read_csv("data_gas.csv")
@@ -243,6 +258,115 @@ app.layout = dbc.Container(children=[
     ])
     
 ], fluid=True, style = {"height":"100%"})
+
+
+#======= CALLBACKS =======#
+
+@app.callback(
+    Output('static-maxmin', 'figure'),
+    Input('dataset', 'data'),
+    Input(ThemeSwitchAIO.ids.switch("theme"), "value")
+)
+def func(data, toggle):
+    template = template_theme1 if toggle else template_theme2
+
+    dff = pd.DataFrame(data)
+    max = dff.groupby(['ANO'])['VALOR REVENDA (R$/L)'].max()
+    min = dff.groupby(['ANO'])['VALOR REVENDA (R$/L)'].min()
+
+    final_df = pd.concat([max,min], axis=1)
+    final_df.columns = ['Máximo','Mínimo']
+
+    fig = px.line(final_df, x=final_df.index, y=final_df.columns, template=template)
+
+    #updates
+    fig.update_layout(main_config, height=150, xaxis_title=None, yaxis_title=None)
+
+    return fig
+
+#callback-indicator-2
+@app.callback(
+    Output('card2_indicators', 'figure'),
+    [Input('dataset', 'data'),
+    Input('select_estado2', 'value'),
+    Input(ThemeSwitchAIO.ids.switch('theme'), 'value')]
+)
+def card2(data, estado, toggle):
+    template = template_theme1 if toggle else template_theme2
+
+    dff = pd.DataFrame(data)
+    df_final = dff[dff.ESTADO.isin([estado])]
+
+    data1 = str(int(dff.ANO.min()) - 1)
+    data2 = dff.ANO.max()
+
+    fig=go.Figure()
+
+    fig.add_trace(go.Indicator(
+    mode = 'number+delta',
+    title = {"text": f"<span style='size:60%'>{estado}</span><br><span style='font-size:0.7em'>{data1} - {data2}</spam>"},
+    value = df_final.at[df_final.index[-1], 'VALOR REVENDA (R$/L)'],
+    number = {'prefix': 'R$', 'valueformat': '.2f'},
+    delta = {'relative': True, 'valueformat': '.1%', 'reference': df_final.at[df_final.index[0], 'VALOR REVENDA (R$/L)']}
+    ))
+
+    fig.update_layout(main_config, height=250, template=template)
+
+    return fig
+
+#callback de barras horizontais
+@app.callback(
+    [Output('regiaobar_graph', 'figure'),
+    Output('estadobar_graph', 'figure')],
+    [Input('dataset_fixed', 'data'),
+    Input('select-ano', 'value'),
+    Input('select-regiao', 'value'),
+    Input(ThemeSwitchAIO.ids.switch('theme'), 'value')]
+)
+def graph1(data, ano, regiao, toggle):
+    template = template_theme1 if toggle else template_theme2
+
+    df = pd.DataFrame(data)
+    df_filtered = df[df.ANO.isin([ano])]
+
+    dff_regiao = df_filtered.groupby(['ANO', 'REGIÃO'])['VALOR REVENDA (R$/L)'].mean().reset_index()
+    dff_estado = df_filtered.groupby(['ANO', 'ESTADO', 'REGIÃO'])['VALOR REVENDA (R$/L)'].mean().reset_index()
+    dff_estado = dff_estado[dff_estado.REGIÃO.isin([regiao])]
+
+    dff_regiao = dff_regiao.sort_values(by='VALOR REVENDA (R$/L)', ascending=True)
+    dff_estado = dff_estado.sort_values(by='VALOR REVENDA (R$/L)', ascending=True)
+
+    dff_regiao['VALOR REVENDA (R$/L)'] = dff_regiao['VALOR REVENDA (R$/L)'].round(decimals=2)
+    dff_estado['VALOR REVENDA (R$/L)'] = dff_estado['VALOR REVENDA (R$/L)'].round(decimals=2)
+
+    fig1_text = [f'{x} - R${y}' for x,y in zip(dff_regiao.REGIÃO.unique(), dff_regiao['VALOR REVENDA (R$/L)'].unique())]
+    fig2_text = [f'R${x} - R${y}' for x,y in zip(dff_estado.ESTADO.unique(), dff_estado['VALOR REVENDA (R$/L)'].unique())]
+
+    fig1 = go.Figure(go.Bar(
+        x=dff_regiao['VALOR REVENDA (R$/L)'],
+        y=dff_regiao['REGIÃO'],
+        orientation='h',
+        text=fig1_text,
+        textposition='auto',
+        insidetextanchor='end',
+        insidetextfont=dict(family='Times', size=12)
+    ))
+    fig2 = go.Figure(go.Bar(
+        x=dff_estado['VALOR REVENDA (R$/L)'],
+        y=dff_estado['ESTADO'],
+        orientation='h',
+        text=fig2_text,
+        insidetextanchor='end',
+        insidetextfont=dict(family='Times', size=12)
+    ))
+
+    fig1.update_layout(main_config, yaxis={"showticklabels":False}, height=140, template=template)
+    fig2.update_layout(main_config, yaxis={"showticklabels":False}, height=140, template=template)
+
+    fig1.update_layout(xaxis_range=[dff_regiao['VALOR REVENDA (R$/L)'].max(), dff_regiao['VALOR REVENDA (R$/L)'].min() - 0.15])
+    fig1.update_layout(xaxis_range=[dff_regiao['VALOR REVENDA (R$/L)'].max(), dff_regiao['VALOR REVENDA (R$/L)'].min() - 0.15])
+
+    return[fig1,fig2]
 
 # Run server
 if __name__ == '__main__':
