@@ -67,6 +67,7 @@ app.layout = dbc.Container(children=[
     #Armazenar o Dataset
     dcc.Store(id='dataset', data=df_store),
     dcc.Store(id='dataset_fixed', data=df_store),
+    dcc.Store(id='controller', data={'play': False}),
 
     #Layout
     #Row 1
@@ -474,6 +475,39 @@ def range_slider(range,data):
     data = dff.to_dict()
 
     return data
+
+# Play and Pause
+@app.callback(
+    Output('rangeslider', 'value'),
+    Output('controller', 'data'),
+
+    Input('interval', 'n_intervals'),
+    Input('play-button', 'n_clicks'),
+    Input('stop-button', 'n_clicks'),
+
+    State('rangeslider', 'value'),
+    State('controller', 'data'),
+    prevent_initial_callbacks = True
+)
+def controller(n_intervals, play,stop, rangeslider, controller):
+    trigg = dash.callback_context.triggered[0]['prop_id']
+
+    if ('play-button' in trigg and not controller['play']):
+        if not controller['play']:
+            controller['play'] = True
+            rangeslider[1] = 2007
+    
+    elif 'stop-button' in trigg:
+        if controller['play']:
+            controller['play'] = True
+            rangeslider[1] = 2007
+
+    if controller['play']:
+        if rangeslider[1] == 2021:
+            controller['play'] = False
+        rangeslider[1] += 1 if rangeslider[1] < 2021 else 0
+    
+    return rangeslider, controller
 
 # Run server
 if __name__ == '__main__':
